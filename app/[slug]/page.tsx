@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { HeaderSection } from '@/components/sections/header'
 import { HeroSection } from '@/components/sections/hero'
@@ -13,6 +14,7 @@ import { StatsSection } from '@/components/sections/stats'
 import { FooterSection } from '@/components/sections/footer'
 import { GlobalHeader } from '@/components/global-header'
 import { GlobalFooter } from '@/components/global-footer'
+import type { Metadata } from 'next'
 
 interface Section {
   id: string
@@ -27,13 +29,64 @@ interface Section {
   config?: any
 }
 
-export default async function HomePage() {
-  // Try to find a page with slug "home" or "index" as the homepage
-  let page = await prisma.page.findFirst({
-    where: {
-      slug: { in: ['home', 'index'] },
-      status: 'PUBLISHED',
+interface Page {
+  id: string
+  title: string
+  slug: string
+  status: string
+  seoTitle?: string
+  seoDescription?: string
+  seoKeywords?: string
+  ogImage?: string
+  sections: Section[]
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  
+  // Skip if it's a reserved route
+  if (slug === 'admin' || slug === 'api') {
+    return {}
+  }
+
+  const page = await prisma.page.findUnique({
+    where: { slug },
+  })
+
+  if (!page || page.status !== 'PUBLISHED') {
+    return {}
+  }
+
+  return {
+    title: page.seoTitle || page.title,
+    description: page.seoDescription || undefined,
+    keywords: page.seoKeywords || undefined,
+    openGraph: {
+      title: page.seoTitle || page.title,
+      description: page.seoDescription || undefined,
+      images: page.ogImage ? [page.ogImage] : undefined,
     },
+  }
+}
+
+export default async function PageBySlug({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
+  // Skip if it's a reserved route
+  if (slug === 'admin' || slug === 'api') {
+    notFound()
+  }
+
+  const page = await prisma.page.findUnique({
+    where: { slug },
     include: {
       sections: {
         orderBy: {
@@ -43,40 +96,8 @@ export default async function HomePage() {
     },
   })
 
-  // If no home page exists, try to get the first published page
-  if (!page) {
-    page = await prisma.page.findFirst({
-      where: {
-        status: 'PUBLISHED',
-      },
-      include: {
-        sections: {
-          orderBy: {
-            order: 'asc',
-          },
-        },
-      },
-    })
-  }
-
-  // If still no page, show a default message
-  if (!page) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4">Welcome</h1>
-          <p className="text-muted-foreground mb-8">
-            No published pages found. Create your first page in the admin panel.
-          </p>
-          <a
-            href="/admin/pages"
-            className="text-primary hover:underline"
-          >
-            Go to Admin Panel
-          </a>
-        </div>
-      </div>
-    )
+  if (!page || page.status !== 'PUBLISHED') {
+    notFound()
   }
 
   // Get global settings
@@ -89,6 +110,10 @@ export default async function HomePage() {
 
   const globalHeader = globalHeaderSetting?.value as any
   const globalFooter = globalFooterSetting?.value as any
+
+  // Check if page has header/footer sections
+  const hasPageHeader = page.sections.some((s) => s.type === 'HEADER')
+  const hasPageFooter = page.sections.some((s) => s.type === 'FOOTER')
 
   const renderSection = (section: Section) => {
     switch (section.type) {
@@ -162,3 +187,4 @@ export default async function HomePage() {
     </div>
   )
 }
+
