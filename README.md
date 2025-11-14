@@ -1,6 +1,6 @@
 # Smart CMS
 
-A modern, Contentful/Strapi-style Content Management System built with Next.js 16, Prisma, PostgreSQL, Tailwind CSS, and Shadcn UI. Perfect for building marketing websites and landing pages.
+A minimal CMS built with Next.js 16, Prisma, PostgreSQL, Tailwind CSS, and Shadcn UI. This is a single app that serves as both the content management system and the website itself - perfect for building marketing websites and landing pages.
 
 ## 🚀 Features
 

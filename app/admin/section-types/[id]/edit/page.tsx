@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+import { FieldBuilder, FieldDefinition } from '@/components/field-builder'
+import { ConfigBuilder } from '@/components/config-builder'
 import { useToast } from '@/hooks/use-toast'
 
 interface SectionType {
@@ -42,8 +44,8 @@ export default function EditSectionTypePage() {
   const [description, setDescription] = useState('')
   const [icon, setIcon] = useState('')
   const [component, setComponent] = useState('')
-  const [fields, setFields] = useState('')
-  const [config, setConfig] = useState('')
+  const [fields, setFields] = useState<FieldDefinition[]>([])
+  const [config, setConfig] = useState<Record<string, any>>({})
   const [isActive, setIsActive] = useState(true)
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
@@ -79,8 +81,8 @@ export default function EditSectionTypePage() {
         setDescription(data.description || '')
         setIcon(data.icon || '')
         setComponent(data.component || '')
-        setFields(data.fields ? JSON.stringify(data.fields, null, 2) : '')
-        setConfig(data.config ? JSON.stringify(data.config, null, 2) : '')
+        setFields(Array.isArray(data.fields) ? data.fields : [])
+        setConfig(data.config && typeof data.config === 'object' ? data.config : {})
         setIsActive(data.isActive !== undefined ? data.isActive : true)
       } catch (error) {
         toast({
@@ -102,25 +104,6 @@ export default function EditSectionTypePage() {
     setLoading(true)
 
     try {
-      let parsedFields = null
-      let parsedConfig = null
-
-      if (fields.trim()) {
-        try {
-          parsedFields = JSON.parse(fields)
-        } catch {
-          throw new Error('Fields must be valid JSON')
-        }
-      }
-
-      if (config.trim()) {
-        try {
-          parsedConfig = JSON.parse(config)
-        } catch {
-          throw new Error('Config must be valid JSON')
-        }
-      }
-
       const response = await fetch(`/api/section-types/${params.id}`, {
         method: 'PUT',
         headers: {
@@ -132,8 +115,8 @@ export default function EditSectionTypePage() {
           description: description || null,
           icon: icon || null,
           component: component || null,
-          fields: parsedFields,
-          config: parsedConfig,
+          fields: fields.length > 0 ? fields : null,
+          config: Object.keys(config).length > 0 ? config : null,
           isActive,
         }),
       })
@@ -288,34 +271,12 @@ export default function EditSectionTypePage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fields">Fields (JSON)</Label>
-              <Textarea
-                id="fields"
-                value={fields}
-                onChange={(e) => setFields(e.target.value)}
-                placeholder='{"title": "string", "subtitle": "string"}'
-                rows={8}
-                className="font-mono text-sm"
-              />
-              <p className="text-sm text-muted-foreground">
-                Optional JSON object defining the fields for this section type
-              </p>
+            <div className="space-y-4">
+              <FieldBuilder fields={fields} onChange={setFields} />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="config">Config (JSON)</Label>
-              <Textarea
-                id="config"
-                value={config}
-                onChange={(e) => setConfig(e.target.value)}
-                placeholder='{"backgroundColor": "blue"}'
-                rows={8}
-                className="font-mono text-sm"
-              />
-              <p className="text-sm text-muted-foreground">
-                Optional JSON object for additional configuration
-              </p>
+            <div className="space-y-4">
+              <ConfigBuilder config={config} onChange={setConfig} />
             </div>
 
             <div className="flex gap-4">
